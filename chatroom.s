@@ -29,12 +29,16 @@ project8:
     ;pin diagram: page 1328
     ;connect RX: recieve pin (input), TX: transmit pin (output), GND
     BL uart_communication_init
-    
+
     BL read_character_uart2
     BL output_character_uart2
 
-    
 
+infinite_loop:
+
+
+
+	B infinite_loop
 
 
 
@@ -140,17 +144,17 @@ output_flag:
 
     AND r7, r5, r6
 
-    CMP r7 #0
+    CMP r7, #0
     BNE output_flag
 
     STRB r0, [r4]
 
-    POP {r4-r12, lr}  	
+    POP {r4-r12, lr}
     mov pc, lr
 
 
 
-read_character_uart2:   
+read_character_uart2:
     PUSH {r4-r12, lr}
 
 read_flag:
@@ -163,7 +167,7 @@ read_flag:
 
     AND r7, r5, r6
 
-    CMP r7 #0
+    CMP r7, #0
     BNE read_flag
 
     LDRB r0, [r4]
@@ -175,7 +179,7 @@ read_flag:
 
 
 
-    POP {r4-r12, lr}  	
+    POP {r4-r12, lr}
     mov pc, lr
 
 
