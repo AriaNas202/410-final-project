@@ -2,6 +2,7 @@
 
 
     .global spiInit
+    .global lcdSend
 
 
 
@@ -22,9 +23,253 @@
 	;D0 --> Register Select Pin
 	;D1 --> Enable Pin
 
-;WORK IN PROGRESS
+
+;Function to init the lcd and
+;temporarily hardcoded to show some value (FOR MY TESTING PURPOSES)
+lcdSend:
+	PUSH {r4-r12, lr}
+	;Process:
+		;Unlatch shift reg
+		;Wait for transfer
+		;set bits in register
+		;wait for transfer
+		;latch register
+		;delay 25 ms for next transmission
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	;ARGUMENT r0 contains 2 hex which we're to send
+	;(store in r2 for saving)
+	MOV r2, r0
+		;Eventually we'll probably have an argument which says if hex is command or data but im just trying to init rn
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;FIRST HEX TO SEND!!!!
+	;(r0-address; r1-data, r2-argument to send)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Unlatch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	BIC r1, #0x40			;set bit 6 low
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Previous Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+PrevTransPoll:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE PrevTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Send Data
+	;SSIDR (pg 973) (Using SSI2: 4000A008)
+	MOV r0, #0xA000
+	MOVT r0, #0x4000
+	add r0, r0, #0x008		;get effective address
+
+	;Get Higher Nibble hex out of r2 to send
+	AND r1, r2, #0xF0		;mask first hex value and put in r1
+
+
+	STR r1, [r0]			;update register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Current Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	;(r0-address; r1-data)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+CurrTransPoll:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE CurrTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Latch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	;(r0-address; r1-data)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	ORR r1, #0x40			;set bit 6 High
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;stall a little between data sends (25 ms)
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;SECOND HEX TO SEND!!!!
+	;(r0-address; r1-data, r2-argument to send)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Unlatch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	BIC r1, #0x40			;set bit 6 low
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Previous Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+PrevTransPoll:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE PrevTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Send Data
+	;SSIDR (pg 973) (Using SSI2: 4000A008)
+	MOV r0, #0xA000
+	MOVT r0, #0x4000
+	add r0, r0, #0x008		;get effective address
+
+	;Get Higher Nibble hex out of r2 to send
+	AND r1, r2, #0xF		;mask second hex value and put in r1
+
+
+	STR r1, [r0]			;update register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Current Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	;(r0-address; r1-data)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+CurrTransPoll:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE CurrTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Latch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	;(r0-address; r1-data)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	ORR r1, #0x40			;set bit 6 High
+
+	STR r1, [r0]			;update Register
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;stall a little between data sends (25 ms)
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	POP {r4-r12, lr}
+	MOV pc, lr
+
+
+
+
+
+
+
+
 spiInit:
 	PUSH {r4-r12, lr}	; Store register lr on stack
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Enable clock to Appropriate GPIO Module
@@ -55,7 +300,6 @@ spiInit:
 	;GPIOAFSEL (pg 671) (Port B APB: 40005420)
 	;(r0-address; r1-data)
 	;Port B4/B7
-	;NOTE: CURRENTLY NOT SETTING PORT C (because that's a latch for alice board, not spi)
 	mov r0, #0x5000
 	movt r0, #0x4000
 	add r0, r0, #0x420		;get effective address
@@ -92,13 +336,13 @@ spiInit:
 
 	str r1, [r0]			;update register
 
-	;Port C, Pin 7 (4000651C)
-	;For some reason this regiser seems to be init t 0xF which turns into 0x8f, idk if that's an issue (i dont think so)
+	;Port C, Pin 6 (4000651C)
+	;NOTE: I Changes this FROM pin7 to pin6 (7 segment used 7, but LCD 6) (I think)
 	MOV r0, #0x6000
 	movt r0, #0x4000
 	add r0, r0, #0x51C		;get effective address
 
-	MOV r1, #0x80			;set pins 7
+	MOV r1, #0x40			;set pins 6
 
 	str r1, [r0]			;update register
 
@@ -117,12 +361,13 @@ spiInit:
 
 	str r1, [r0]			;update register
 
-	;Port C, Pins 7 (40006400)
+	;Port C, Pins 6 (40006400)
+	;NOTE: I Changes this FROM pin7 to pin6 (7 segment used 7, but LCD 6) (I think)
 	MOV r0, #0x6000
 	movt r0, #0x4000
 	add r0, r0, #0x400		;get effective address
 
-	MOV r1, #0x80			;set pin 7 as output
+	MOV r1, #0x40			;set pin 6 as output
 
 	str r1, [r0]			;update register
 
@@ -139,7 +384,7 @@ spiInit:
 	movt r0, #0x400F
 	add r0, r0, #0x61C		;get effective address
 
-	MOV r1, #0x4			;enable ssi module 2 (notes say so)
+	MOV r1, #0x4			;enable ssi module 2
 
 	str r1, [r0]			;update register
 	nop
@@ -175,8 +420,9 @@ spiInit:
 	nop
 	nop
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;Set SSI as Master
+	;Set SSI to Lead
 	;SSICR1 (pg 971) (Using SSI2: 4000A004)
 	;(r0-address; r1-data)
 	MOV r0, #0xA000
@@ -209,10 +455,11 @@ spiInit:
 	nop
 	nop
 
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Set SSI Clock Prescale Divisor
 	;SSICPSR (pg 976) (Using SSI2: 4000A010)
-	;Note: SSInClk = SysClk/ (CPSDVSR * (1+SCR)) BUT we're making SRC 0, so it doesn't affect anything
+	;Note: SSInClk = SysClk/ (CPSDVSR * (1+SCR)) BUT we're making SRC 0, so it doesn't affect anything (Default is 0, I don't need to touch it and I wont)
 	;(r0-address; r1-data)
 	MOV r0, #0xA000
 	movt r0, #0x4000
@@ -223,14 +470,16 @@ spiInit:
 	STR r1, [r0]			;update register
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;?				Select the 16-Bit Data Size
-	;				PROBABLY WILL NEED TO CHANGE THE DATA SIZE
+	;Select the 8-Bit Data Size
 	;SSICR0 (pg 969) (Using SSI2: 4000A000)
 	;(r0-address; r1-data)
+	;NOTE: I Changes this FROM 16bit to 8bit (LCD doesnt read more than 8 bits at once)
+		;Evetually I may change it to 6-bit but Im trying 8 for now
+
 	MOV r0, #0xA000
 	movt r0, #0x4000	;get effective address
 
-	MOV r1, #0xF		;set SSI Data size to 16-bit
+	MOV r1, #0xF		;set SSI Data size to 8-bit
 
 	STR r1, [r0]		;update register
 
@@ -238,14 +487,16 @@ spiInit:
 	;Enable Loopback
 	;SSICR1 (pg 971) (Using SSI2: 4000A004)
 	;(r0-address; r1-data)
-	MOv r0, #0xA000
-	movt r0, #0x4000
-	add r0, r0, #0x004		;get effective address
+	;NOTE: I AM REMOVING LOOPBACK FOR NOW!!!!
 
-	LDR r1, [r0]			;get current data
-	ORR r1, #0x1			;set the LSB to 1 (turns on loopback mode)
+	;MOv r0, #0xA000
+	;movt r0, #0x4000
+	;add r0, r0, #0x004		;get effective address
 
-	STR r1, [r0]			;update register
+	;LDR r1, [r0]			;get current data
+	;ORR r1, #0x1			;set the LSB to 1 (turns on loopback mode)
+
+	;STR r1, [r0]			;update register
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Enable SSE (Synchronous Serial Port)
@@ -274,3 +525,58 @@ spiInit:
 	MOV pc, lr
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    .end
