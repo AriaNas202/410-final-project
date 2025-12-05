@@ -69,11 +69,11 @@ lcdSend:
 	Movt r0, #0x4000
 	add r0, r0, #0x00C		;get effective address
 
-PrevTransPoll:
+PrevTransPoll1:
 	ldr r1, [r0]			;get register data
 	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
 	CMP r1, #0				;compare to 0
-	BNE PrevTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+	BNE PrevTransPoll1		;If r1 ISNT 0, then it's still busy, so poll
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Send Data
 	;SSIDR (pg 973) (Using SSI2: 4000A008)
@@ -94,11 +94,11 @@ PrevTransPoll:
 	Movt r0, #0x4000
 	add r0, r0, #0x00C		;get effective address
 
-CurrTransPoll:
+CurrTransPoll1:
 	ldr r1, [r0]			;get register data
 	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
 	CMP r1, #0				;compare to 0
-	BNE CurrTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+	BNE CurrTransPoll1		;If r1 ISNT 0, then it's still busy, so poll
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Latch Shift Reg
 	;GPIODATA (pg 662) (Port C APB: 40006000)
@@ -172,11 +172,11 @@ CurrTransPoll:
 	Movt r0, #0x4000
 	add r0, r0, #0x00C		;get effective address
 
-PrevTransPoll:
+PrevTransPoll2:
 	ldr r1, [r0]			;get register data
 	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
 	CMP r1, #0				;compare to 0
-	BNE PrevTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+	BNE PrevTransPoll2		;If r1 ISNT 0, then it's still busy, so poll
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Send Data
 	;SSIDR (pg 973) (Using SSI2: 4000A008)
@@ -197,11 +197,11 @@ PrevTransPoll:
 	Movt r0, #0x4000
 	add r0, r0, #0x00C		;get effective address
 
-CurrTransPoll:
+CurrTransPoll2:
 	ldr r1, [r0]			;get register data
 	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
 	CMP r1, #0				;compare to 0
-	BNE CurrTransPoll		;If r1 ISNT 0, then it's still busy, so poll
+	BNE CurrTransPoll2		;If r1 ISNT 0, then it's still busy, so poll
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Latch Shift Reg
 	;GPIODATA (pg 662) (Port C APB: 40006000)
