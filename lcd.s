@@ -7,98 +7,27 @@
 
 
 
-   	.global spiInit
-    .global lcdSendNibble
-    .global lcdMain
-    .global lcdDelay
+   	.global lcdInit		;inits the spi and lcd screen
+    .global lcdSendByte	;Sends a char to the lcd screen (r0-char or lcd command to display)(r1-RS bit, set to 0 for commands, set to 1 for char data)
+    .global lcdMain		;main function so i can test within this file
+    .global lcdDelay	;helper function which polls for a few thousand instructions so we can send the hex properly
 
 lcdMain:
 	PUSH {r4-r12, lr}
 
 	;init spi
-	bl spiInit
-	nop
-	nop
-	nop
-	nop		;im noping here cause im afraid to NOT nop
-
-	;Start initializing
-
-	;LCD 4-bit mode
-	;0x33
-	MOV r0, #0x3
-	MOV r1, #0x0
-	bl lcdSendNibble
-	MOV r0, #0x3
-	MOV r1, #0x0
-	bl lcdSendNibble
-
-	;0X32
-	MOV r0, #0x3
-	MOV r1, #0x0
-	bl lcdSendNibble
-	MOV r0, #0x2
-	MOV r1, #0x0
-	bl lcdSendNibble
-
-	;set 2 lines, all columns and rows (0X28)
-	MOV r0, #0x2
-	MOV r1, #0x0
-	bl lcdSendNibble
-	MOV r0, #0x8
-	MOV r1, #0x0
-	bl lcdSendNibble
+	bl lcdInit
 
 
-	;clear display (0X01)
-	MOV r0, #0x0
-	MOV r1, #0x0
-	bl lcdSendNibble
-	MOV r0, #0x1
-	MOV r1, #0x0
-	bl lcdSendNibble
-
-
-	;display on, cursor blinks (0X0f)
-	MOV r0, #0x0
-	MOV r1, #0x0
-	bl lcdSendNibble
-	MOV r0, #0xf
-	MOV r1, #0x0
-	bl lcdSendNibble
-
-
-
-
-	;increment cursor after char printed
-	;MOV r0, #06
-	;MOV r1, #0x0
-	;bl lcdSendNibble
-
-	;display on, no blink
-	;MOV r0, #0x0E
-	;MOV r1, #0x0
-	;bl lcdSendNibble
-
-;;;;;;;;;;;;;;;;;;;;
 	;Start sending Data to test!!! (0X80)
-	MOV r0, #0x4
-	MOV r1, #0x1
-	bl lcdSendNibble
+	MOV r0, #0x42			;put data or command in r0
+	MOV r1, #0x1			;set r1 to 0 for commands, set r1 to 1 for data
+	bl lcdSendByte
+	;send as much as you want...
 
-	MOV r0, #0x1
-	MOV r1, #0x1
-	bl lcdSendNibble
-
-	MOV r0, #0x4
-	MOV r1, #0x1
-	bl lcdSendNibble
-
-	MOV r0, #0x2
-	MOV r1, #0x1
-	bl lcdSendNibble
-
-
+	MOV r0, #0x49			;put data or command in r0
+	MOV r1, #0x1			;set r1 to 0 for commands, set r1 to 1 for data
+	bl lcdSendByte
 
 infinMe:
 	B infinMe
@@ -154,12 +83,12 @@ delayMoreYay:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-lcdSendNibble:
+lcdSendByte:
 	PUSH {r4-r12, lr}
 
 	;ARGUMENTS
-	;r0-Nibble to send 	(r2)
-	;r1- RS Bit 		(r3)
+	;r0-Full Data to send 		(r2)
+	;r1- RS Bit 				(r3)
 	MOV r2, r0
 	MOV r3, r1			;Moves arguments into other registers to not override them
 
@@ -169,7 +98,7 @@ lcdSendNibble:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;FIRST HEX TO SEND!!!!
+	;FIRST HEX TO SEND!!!! (Part 1--Enable High)
 	;(r0-address; r1-data, r2-argument to send, r3-RS bit)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Unlatch Shift Reg
@@ -202,7 +131,8 @@ PrevTransPoll1:
 	add r0, r0, #0x008		;get effective address
 
 	;Create Data, Rs, Enable bit to send
-	LSL r1, r2, #4			;shift nibble left 4 bits to put in pins 7-4
+	AND r1, r2, #0xF0		;Mask the higher nibble
+	;LSL r1, r2, #4			;shift nibble left 4 bits to put in pins 7-4
 	Add r1,r1, #0x2			;set enable bit high cause this is the first send
 	add r1,r1,r3			;add the rs bit
 
@@ -310,7 +240,7 @@ CurrTransPoll1:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	;SECOND HEX TO SEND!!!!
+	;FIRST HEX TO SEND!!!! (Part 2--Enable Low)
 	;(r0-address; r1-data, r2-argument to send, r3-RS bit)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	;Unlatch Shift Reg
@@ -344,7 +274,8 @@ PrevTransPoll2:
 
 
 	;Create Data, Rs, Enable bit to send
-	LSL r1, r2, #4			;shift nibble left 4 bits to put in pins 7-4
+	AND r1, r2, #0xF0		;Mask the higher nibble
+	;LSL r1, r2, #4			;shift nibble left 4 bits to put in pins 7-4
 	BIC r1,r1, #0x2			;set enable bit low  cause this is the second send
 	add r1,r1,r3			;add the rs bit
 
@@ -381,6 +312,231 @@ CurrTransPoll2:
 	;stall a little between data sends (25 ms)
 	bl lcdDelay
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;SECOND HEX TO SEND!!!! (Part 1--Enable High)
+	;(r0-address; r1-data, r2-argument to send, r3-RS bit)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Unlatch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	BIC r1, #0x40			;set bit 6 low
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Previous Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+PrevTransPoll3:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE PrevTransPoll3		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Send Data
+	;SSIDR (pg 973) (Using SSI2: 4000A008)
+	MOV r0, #0xA000
+	MOVT r0, #0x4000
+	add r0, r0, #0x008		;get effective address
+
+	;Create Data, Rs, Enable bit to send
+	AND r1, r2, #0xF		;Mask the lower nibble
+	LSL r1, r1, #4			;shift nibble left 4 bits to put in pins 7-4
+	Add r1,r1, #0x2			;set enable bit high cause this is the first send
+	add r1,r1,r3			;add the rs bit
+
+	STR r1, [r0]			;update register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Current Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	;(r0-address; r1-data)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+CurrTransPoll3:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE CurrTransPoll3		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Latch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	;(r0-address; r1-data)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	ORR r1, #0x40			;set bit 6 High
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;FIRST HEX TO SEND!!!! (Part 2--Enable Low)
+	;(r0-address; r1-data, r2-argument to send, r3-RS bit)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Unlatch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	BIC r1, #0x40			;set bit 6 low
+
+	STR r1, [r0]			;update Register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Previous Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+PrevTransPoll4:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE PrevTransPoll4		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Send Data
+	;SSIDR (pg 973) (Using SSI2: 4000A008)
+	MOV r0, #0xA000
+	MOVT r0, #0x4000
+	add r0, r0, #0x008		;get effective address
+
+
+	;Create Data, Rs, Enable bit to send
+	AND r1, r2, #0xF		;Mask the lower nibble
+	LSL r1, r1, #4			;shift nibble left 4 bits to put in pins 7-4
+	BIC r1,r1, #0x2			;set enable bit low  cause this is the second send
+	add r1,r1,r3			;add the rs bit
+
+	STR r1, [r0]			;update register
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Wait for Current Transmission to Complete
+	;SSISR (pg 974) (Using SSI2: 4000A00C)
+	;(r0-address; r1-data)
+	Mov r0, #0xA000
+	Movt r0, #0x4000
+	add r0, r0, #0x00C		;get effective address
+
+CurrTransPoll4:
+	ldr r1, [r0]			;get register data
+	AND r1, r1, #0x10		;mask bit 4 (the busy flag)
+	CMP r1, #0				;compare to 0
+	BNE CurrTransPoll4		;If r1 ISNT 0, then it's still busy, so poll
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Latch Shift Reg
+	;GPIODATA (pg 662) (Port C APB: 40006000)
+	;(r0-address; r1-data)
+	MOv r0, #0x6000
+	movt r0, #0x4000
+	add r0, r0, #0x3FC		;get effective address
+
+	ldr r1, [r0]			;get current data
+	ORR r1, #0x40			;set bit 6 High
+
+	STR r1, [r0]			;update Register
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;stall a little between data sends (25 ms)
+	;putting this here so i can repeatedly call this function without buffering outside the function
+	bl lcdDelay
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
 
 	POP {r4-r12, lr}
 	MOV pc, lr
@@ -399,7 +555,8 @@ CurrTransPoll2:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-spiInit:
+;Initializes the SPi and then the LCD screen
+lcdInit:
 	PUSH {r4-r12, lr}	; Store register lr on stack
 
 
@@ -651,6 +808,46 @@ spiInit:
 	nop
 	nop
 	nop
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	;Do LCD Initialization
+
+	;LCD 4-bit mode
+	;0x33
+	MOV r0, #0x33
+	MOV r1, #0x0
+	bl lcdSendByte
+
+	;0X32
+	MOV r0, #0x32
+	MOV r1, #0x0
+	bl lcdSendByte
+
+	;Set 2 lines, all columns and rows (0X28)
+	MOV r0, #0x28
+	MOV r1, #0x0
+	bl lcdSendByte
+
+	;Clear display (0X01)
+	MOV r0, #0x01
+	MOV r1, #0x0
+	bl lcdSendByte
+
+	;Display on, cursor blinks (0X0f)
+	MOV r0, #0x0f
+	MOV r1, #0x0
+	bl lcdSendByte
+
+	;Increment cursor after char printed
+	;MOV r0, #06
+	;MOV r1, #0x0
+	;bl lcdSendByte
+
+	;Display on, no blink
+	;MOV r0, #0x0E
+	;MOV r1, #0x0
+	;bl lcdSendByte
+
 
 
 	POP {r4-r12, lr}
